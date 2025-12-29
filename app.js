@@ -10,7 +10,7 @@ const resumeRoute = require("./routes/ResumeCheckerRoute.js");
 app.use(express.json());
 dotenv.config();
 app.use(cors({
-    origin : [ 'https://career-forge-ai-neon.vercel.app'],
+    origin : ['https://careerforge-ai-next.vercel.app','https://careerforge-ai-next-git-main-beazawada-bennyhinns-projects.vercel.app','https://careerforge-ai-next-nlqbubr0b-beazawada-bennyhinns-projects.vercel.app'],
     methods:['GET','POST'],
     credentials:true
 }));

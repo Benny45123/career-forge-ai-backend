@@ -46,5 +46,6 @@ app.post('/api/logout',(req,res)=>{
 app.get('/api',(req, res) => {
     res.send('API is running...');
 })
-
-module.exports =  app ;
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+});

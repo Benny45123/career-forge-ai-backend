@@ -1,8 +1,19 @@
 const User =require('../models/userSchema');
+const crypto=require('crypto');
+const OTPVerify=require('../models/OTPVerificationSchema');
+const nodemailer=require('nodemailer');
 const bcrypt = require('bcryptjs');
 const jwt=require('jsonwebtoken');
+const { error } = require('console');
 require('dotenv').config();
 const SECRET_KEY=process.env.SECRET_KEY;
+const transporter=nodemailer.createTransport({
+    service:"gmail",
+    auth:{
+        user:process.env.APP_EMAIL,
+        pass:process.env.EMAIL_PASS
+    }
+});
 const registerUser=async(req,res)=>{
     const {name,email,password}=req.body;
     if(!name||!email||!password){
@@ -14,10 +25,11 @@ const registerUser=async(req,res)=>{
     }
     const hashedPassword=await bcrypt.hash(password,12);
     const newUser=new User({
-        name:name,email:email,password:hashedPassword
+        name:name,email:email,password:hashedPassword,verified:false
     });
-    newUser.save().then(()=>{
-        res.status(201).json({message:"User registered successfully"});
+    newUser.save().then((result)=>{
+        SendOtp({userId:result._id,name,email,res})
+        // res.status(201).json({message:"User registered successfully"});
 }).catch((err)=>{
     return res.status(500).json({message:"Something went wrong"});
 });
@@ -65,4 +77,73 @@ const userSearch=async (id)=>{
     const user=await User.findById(id).select('-password');
     return user;
 }
-module.exports={registerUser,loginUser,authenticateToken,userSearch};
+const SendOtp=async ({userId,user,email,res})=>{
+    try{
+    if(!email){
+        res.status(404).json({message:"User not found"});
+    }
+    const otp=crypto.randomInt(100000,999999).toString();
+    const hashedOtp=await bcrypt.hash(otp,12);
+    const otpRecord=new OTPVerify({
+        userId,
+        otp: hashedOtp,
+        createdAt:Date.now(),
+        expiresAt:Date.now()+(6*60*1000),//6 minutes
+    })
+    await otpRecord.save();
+    await transporter.sendMail({
+        from: `Career-Forge-AI <${process.env.APP_EMAIL}`,
+        to: email,
+        subject: "Your OTP Verification code for Career-Forge-AI SignUp",
+        html:`
+        <h2>Thank You for using our app Career-Forge-AI</h2>
+        <p>Your OTP is :</p>
+        <h1>${otp}</h1>
+        <p>Valid For only 5 minutes</p>
+        `,
+    });
+    res.json({status:"Pending..",message:"Sent OTP to mail",data:{email,user}});
+}
+catch(err){
+    res.json({err,status:"Failed.."})
+    console.log("error",err);
+
+}
+}
+const verifyOTP=async (req,res)=>{
+    try{
+    const {userId,otp}=req.body;
+    if(!userId || !otp){
+        throw new error("Empty details are not allowed");
+    }
+    else{
+        const userOTPRecords=await OTPVerify.find({userId});
+        if(userOTPRecords.length<=0){
+            res.status(404).json("OTPS not found");
+        }
+        else{
+            const {expiresAt}=userOTPRecords[0];
+            const hashedOtp=userOTPRecords[0].otp;
+            if (expiresAt<=Date.now()){
+                await OTPVerify.deleteMany({userId});
+                throw new Error("Otp is expired");
+            }
+            else{
+                const validOtp=await bcrypt.compare(otp,hashedOtp);
+                if(!validOtp){
+                    throw new Error("Invalid Otp  try again ..")
+                }
+                await User.findByIdAndUpdate(userId,{verified:true});
+                await OTPVerify.deleteMany({userId});
+                res.status(201).json({Message:"User Authenticated success"});
+            }
+            
+        }
+    }
+}
+catch (err){
+    console.log("Error",err);
+    res.status(500).json("Error",err);
+}
+}
+module.exports={registerUser,loginUser,authenticateToken,userSearch,verifyOTP};

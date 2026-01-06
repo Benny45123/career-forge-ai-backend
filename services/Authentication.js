@@ -20,7 +20,8 @@ const registerUser=async(req,res)=>{
     }
     const restExisting=await User.findOne({email});
     if(restExisting && !restExisting.verified){
-       return SendOtp({userId:restExisting._id,email:restExisting.email,res});
+       await SendOtp({userId:restExisting._id,email});
+       return res.json({status:"Pending..",message:`Sent OTP to ${email}`,data:{userId:restExisting._id,email}});
     }
     if(restExisting){
         return res.status(400).json({message:"User already exists"});
@@ -29,12 +30,9 @@ const registerUser=async(req,res)=>{
     const newUser=new User({
         name:name,email:email,password:hashedPassword,verified:false
     });
-    newUser.save().then((result)=>{
-        SendOtp({userId:result._id,email,res})
-        // res.status(201).json({message:"User registered successfully"});
-}).catch((err)=>{
-    return res.status(500).json({message:"Something went wrong"});
-});
+    const result=await newUser.save();
+    await SendOtp({userId:result._id,email});
+    return res.status(201).json({status:"Pending..",message:`sent OTP to ${email}`,data:{userId:result._id,email}})
 }
 const loginUser=async(req,res)=>{
     const {email,password}=req.body;
@@ -82,11 +80,8 @@ const userSearch=async (id)=>{
     const user=await User.findById(id).select('-password');
     return user;
 }
-const SendOtp=async ({userId,email,res})=>{
+const SendOtp=async ({userId,email})=>{
     try{
-    if(!email){
-        res.status(404).json({message:"User not found"});
-    }
     const otp=crypto.randomInt(100000,999999).toString();
     const hashedOtp=await bcrypt.hash(otp,12);
     const otpRecord=new OTPVerify({
@@ -96,8 +91,8 @@ const SendOtp=async ({userId,email,res})=>{
         expiresAt:Date.now()+(6*60*1000),//6 minutes
     })
     await otpRecord.save();
-    await transporter.sendMail({
-        from: `Career-Forge-AI <${process.env.APP_EMAIL}`,
+     transporter.sendMail({
+        from: `Career-Forge-AI <${process.env.APP_EMAIL}>`,
         to: email,
         subject: "Your OTP Verification code for Career-Forge-AI SignUp",
         html:`
@@ -107,10 +102,8 @@ const SendOtp=async ({userId,email,res})=>{
         <p>Valid For only 5 minutes</p>
         `,
     });
-    res.json({status:"Pending..",message:`Sent OTP to ${email}`,data:{userId,email}});
 }
 catch(err){
-    res.status(500).json({err,status:"Failed.."})
     console.log("error",err);
 
 }
@@ -119,12 +112,12 @@ const verifyOTP=async (req,res)=>{
     try{
     const {userId,otp}=req.body;
     if(!userId || !otp){
-        res.status(400).json({message:"Empty details are not allowed",verified:false});
+        return res.status(400).json({message:"Empty details are not allowed",verified:false});
     }
     else{
         const userOTPRecords=await OTPVerify.find({userId});
         if(userOTPRecords.length<=0){
-            res.status(404).json({message:"Otps not found",verified:false});
+            return res.status(404).json({message:"Otps not found",verified:false});
         }
         else{
             const {expiresAt}=userOTPRecords[0];
@@ -159,7 +152,8 @@ const resendOtp=async (req,res)=>{
         }
         else{
             await OTPVerify.deleteMany({userId:userId});
-            SendOtp({userId,email,res})
+            await SendOtp({userId,email})
+            res.status(201).json({status:"Pending..",message:`Sent OTP to ${email}`,data:{userId,email}});
         }
 
     }

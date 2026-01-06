@@ -4,7 +4,6 @@ const OTPVerify=require('../models/OTPVerificationSchema');
 const nodemailer=require('nodemailer');
 const bcrypt = require('bcryptjs');
 const jwt=require('jsonwebtoken');
-const { error } = require('console');
 require('dotenv').config();
 const SECRET_KEY=process.env.SECRET_KEY;
 const transporter=nodemailer.createTransport({
@@ -20,6 +19,9 @@ const registerUser=async(req,res)=>{
         return res.status(400).json({message:"Please fill all the fields"});
     }
     const restExisting=await User.findOne({email});
+    if(restExisting && !restExisting.verified){
+       return SendOtp({userId:restExisting._id,email:restExisting.email,res});
+    }
     if(restExisting){
         return res.status(400).json({message:"User already exists"});
     }
@@ -28,7 +30,7 @@ const registerUser=async(req,res)=>{
         name:name,email:email,password:hashedPassword,verified:false
     });
     newUser.save().then((result)=>{
-        SendOtp({userId:result._id,name,email,res})
+        SendOtp({userId:result._id,email,res})
         // res.status(201).json({message:"User registered successfully"});
 }).catch((err)=>{
     return res.status(500).json({message:"Something went wrong"});
@@ -42,6 +44,9 @@ const loginUser=async(req,res)=>{
     const isUser=await User.findOne({email});
     if(!isUser){
         return res.status(400).json({message:"User does not exist"});
+    }
+    if(!isUser.verified){
+        return res.status(401).json({message:"OTP verification is not done"});
     }
     const isPasswordCorrect=await bcrypt.compare(password,isUser.password);
     if(!isPasswordCorrect){
@@ -77,7 +82,7 @@ const userSearch=async (id)=>{
     const user=await User.findById(id).select('-password');
     return user;
 }
-const SendOtp=async ({userId,user,email,res})=>{
+const SendOtp=async ({userId,email,res})=>{
     try{
     if(!email){
         res.status(404).json({message:"User not found"});
@@ -102,10 +107,10 @@ const SendOtp=async ({userId,user,email,res})=>{
         <p>Valid For only 5 minutes</p>
         `,
     });
-    res.json({status:"Pending..",message:"Sent OTP to mail",data:{email,user}});
+    res.json({status:"Pending..",message:`Sent OTP to ${email}`,data:{userId,email}});
 }
 catch(err){
-    res.json({err,status:"Failed.."})
+    res.status(500).json({err,status:"Failed.."})
     console.log("error",err);
 
 }
@@ -114,28 +119,28 @@ const verifyOTP=async (req,res)=>{
     try{
     const {userId,otp}=req.body;
     if(!userId || !otp){
-        throw new error("Empty details are not allowed");
+        res.status(400).json({message:"Empty details are not allowed",verified:false});
     }
     else{
         const userOTPRecords=await OTPVerify.find({userId});
         if(userOTPRecords.length<=0){
-            res.status(404).json("OTPS not found");
+            res.status(404).json({message:"Otps not found",verified:false});
         }
         else{
             const {expiresAt}=userOTPRecords[0];
             const hashedOtp=userOTPRecords[0].otp;
             if (expiresAt<=Date.now()){
-                await OTPVerify.deleteMany({userId});
-                throw new Error("Otp is expired");
+                await OTPVerify.deleteMany({userId:userId});
+                return res.status(410).json({verified:false,message:"OTP expired"})
             }
             else{
                 const validOtp=await bcrypt.compare(otp,hashedOtp);
                 if(!validOtp){
-                    throw new Error("Invalid Otp  try again ..")
+                    return res.status(401).json({verified:false,message:"Invalid otp"})
                 }
                 await User.findByIdAndUpdate(userId,{verified:true});
-                await OTPVerify.deleteMany({userId});
-                res.status(201).json({Message:"User Authenticated success"});
+                await OTPVerify.deleteMany({userId:userId});
+                res.status(201).json({Message:"User Authenticated success",verified:true});
             }
             
         }
@@ -146,4 +151,20 @@ catch (err){
     res.status(500).json("Error",err);
 }
 }
-module.exports={registerUser,loginUser,authenticateToken,userSearch,verifyOTP};
+const resendOtp=async (req,res)=>{
+    try{
+        const {userId,email}=req.body;
+        if(!userId || !email){
+           return res.status(400).json({message:"Empty details are not allowed"});
+        }
+        else{
+            await OTPVerify.deleteMany({userId:userId});
+            SendOtp({userId,email,res})
+        }
+
+    }
+    catch(err){
+        res.status(500).json({message:"Something went wrong",err});
+    }
+}
+module.exports={registerUser,loginUser,authenticateToken,userSearch,verifyOTP,resendOtp};

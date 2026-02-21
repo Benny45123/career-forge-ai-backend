@@ -24,7 +24,7 @@ mongoose.connect(MONGO_URI).then(console.log("Connected to MongoDB")).catch((err
 const authlimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 10, // limit each IP to 10 requests per windowMs
-    message: "Too many auth requests from this IP, please try again after 15 minutes"
+    message: {message : "Too many auth requests from this IP, please try again after 15 minutes"}
 });
 app.set('trust proxy', 1); // trust first proxy
 

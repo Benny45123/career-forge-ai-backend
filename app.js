@@ -7,6 +7,7 @@ const app = express();
 const cookieParser=require('cookie-parser');
 const coverLetterRoute = require("./routes/coverLetterRoute.js");
 const resumeRoute = require("./routes/ResumeCheckerRoute.js");
+const rateLimit = require("express-rate-limit");
 app.use(express.json());
 dotenv.config();
 app.use(cors({
@@ -19,8 +20,16 @@ app.use(express.urlencoded({ extended: true }));
 const PORT = process.env.PORT;
 const MONGO_URI = process.env.MONGO_URI;
 mongoose.connect(MONGO_URI).then(console.log("Connected to MongoDB")).catch((err) => console.log(err));
+
+const authlimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 10, // limit each IP to 10 requests per windowMs
+    message: "Too many auth requests from this IP, please try again after 15 minutes"
+});
+app.set('trust proxy', 1); // trust first proxy
+
 app.post('/api/register',registerUser);
-app.post('/api/login',loginUser);
+app.post('/api/login',authlimiter,loginUser);
 app.post('/api/verify-otp',verifyOTP);
 app.post('/api/resend-otp',resendOtp);
 app.use(authenticateToken);

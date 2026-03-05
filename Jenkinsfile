@@ -14,14 +14,14 @@ pipeline{
         stage('Create .env File') {
     steps {
         // This creates a physical .env file in the workspace
-        sh """
+        sh '''
             echo "PORT=${PORT}" > .env
             echo "MONGO_URI=${MONGO_URI}" >> .env
             echo "SECRET_KEY=${SECRET_KEY}" >> .env
             echo "GEMINI_API_KEY=${GEMINI_API_KEY}" >> .env
             echo "APP_EMAIL=${APP_EMAIL}" >> .env
             echo "EMAIL_PASS=${EMAIL_PASS}" >> .env
-        """
+        '''
         echo "Physical .env file created for the build."
     }
     }

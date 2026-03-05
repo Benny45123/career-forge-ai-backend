@@ -61,6 +61,6 @@ app.post('/api/logout',(req,res)=>{
 app.get('/api',(req, res) => {
     res.send('API is running...');
 })
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+app.listen(PORT||3120, () => {
+    console.log(`Server is running on port ${PORT||3120}`);
 });

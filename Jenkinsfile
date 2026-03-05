@@ -24,6 +24,7 @@ pipeline{
         """
         echo "Physical .env file created for the build."
     }
+    }
         stage('Checkout'){
             steps{
             echo 'Checking out code...'

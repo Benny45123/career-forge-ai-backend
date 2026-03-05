@@ -19,7 +19,7 @@ pipeline{
         }
         stage('Run Application'){
             echo 'Running application...'
-            sh 'npm start'
+            sh 'node app.js'
         }
     }
 }

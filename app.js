@@ -29,7 +29,7 @@ const authlimiter = rateLimit({
 app.set('trust proxy', 1); // trust first proxy
 console.log("Testing github webhooks in jenkins");
 app.get('/', (req, res) => {
-    res.send("Testing github webhooks in jenkins");
+    res.send("Testing github webhooks and automating ci/cd jenkins");
 });
 
 app.post('/api/register',registerUser);

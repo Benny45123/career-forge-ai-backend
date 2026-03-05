@@ -1,7 +1,6 @@
 const pdfParse = require('pdf-parse');
 const Resume = require('../models/ResumeSchema.js');
 const {GoogleGenerativeAI}= require('@google/generative-ai');
-const { create } = require('../models/userSchema.js');
 const API_KEY = process.env.GEMINI_API_KEY;
 const genAi = new GoogleGenerativeAI(API_KEY);
 const analyzeResume = async(req,res)=>{
@@ -138,7 +137,7 @@ ${jobDescription}
             missing_keywords,
             responseConfidence
         });
-      Resume.create({
+      await Resume.create({
         userId:req.user.id,
         atsScore:overallScore,
         responseConfidence,

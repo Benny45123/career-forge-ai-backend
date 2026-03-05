@@ -27,6 +27,10 @@ const authlimiter = rateLimit({
     message: {message : "Too many auth requests from this IP, please try again after 15 minutes"}
 });
 app.set('trust proxy', 1); // trust first proxy
+console.log("Testing github webhooks in jenkins");
+app.get('/', (req, res) => {
+    res.send("Testing github webhooks in jenkins");
+});
 
 app.post('/api/register',registerUser);
 app.post('/api/login',authlimiter,loginUser);

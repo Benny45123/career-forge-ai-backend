@@ -30,10 +30,10 @@ const buildCoverLetterPrompt = (relevantChunks, jobDescription, skillsFocus, rec
 3. DATA-DRIVEN: Use metrics/numbers from the resume sections if available.
 4. STRICT LIMITS: 
    - No "hallucinations": Use ONLY provided data.
-   - Aim for 400-500 words.
+   - Aim for 300-400 words.
    - Start with "Dear ${recruiterName || 'Hiring Manager'},"
    - no special symbols like *,&,etc or formatting in the output.
-   - end with Sincerely, with good formatting
+   - end with Sincerely, thats it no name or signature with good formatting.
 
 [OUTPUT FORMAT]
 Return ONLY a JSON object:

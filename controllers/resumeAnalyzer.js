@@ -1,9 +1,12 @@
 const pdfParse = require('pdf-parse');
 const Resume = require('../models/ResumeSchema.js');
 const {GoogleGenerativeAI}= require('@google/generative-ai');
+const {buildResumeAnalysisPrompt} = require('../utils/promptBuider.js');
+const {buildResumeRetriever} = require('../rag/retreiver.js');
 const API_KEY = process.env.GEMINI_API_KEY;
 const genAi = new GoogleGenerativeAI(API_KEY);
 const analyzeResume = async(req,res)=>{
+  let cleanup=null;
     try{
         if(!req.file){
             return res.status(400).json({error:'Resume file is required'});
@@ -11,142 +14,80 @@ const analyzeResume = async(req,res)=>{
         const resumeData=await pdfParse(req.file.buffer);
         const resumeText=resumeData.text;
         const jobDescription=req.body.jobDescription||"";
-        const prompt = `SYSTEM ROLE:
-You are a professional Applicant Tracking System (ATS) resume analyzer used by hiring platforms.
-Your task is to analyze resumes strictly for ATS-style parsing and keyword relevance.
+        const {retreiver,cleanup:_cleanup}=await buildResumeRetriever(resumeText,req.user.id);
+        cleanup=_cleanup;
+        const queries= [
+          jobDescription,                                          
+          "technical skills programming languages frameworks tools libraries", 
+          "work experience projects achievements responsibilities",            
+          "education degree university certification courses",                 
+          "summary objective profile professional overview",                   
+        ];
+        const seen = new Set();
+        const uniqueChunks = [];
 
-You are NOT a scoring system.
-You are NOT allowed to calculate percentages or scores.
-You are NOT allowed to explain your reasoning.
+        for (const query of queries) {
+          if (!query.trim()) continue;
+            const chunks = await retreiver(query, 4);
+            for (const chunk of chunks) {
+              if (!seen.has(chunk.pageContent)) {
+                seen.add(chunk.pageContent);
+                uniqueChunks.push(chunk);
+              }
+            }
+          }
 
-----------------------------------------------------
+        const prompt=buildResumeAnalysisPrompt(uniqueChunks,jobDescription);
 
-INPUTS YOU WILL RECEIVE:
-1. Resume text (plain extracted text from PDF or DOCX)
-2. Job description text
-
-Both inputs may contain:
-- Inconsistent formatting
-- Bullet points
-- Line breaks
-- Noise such as headers, footers, icons, or symbols
-- Short or long job descriptions
-
-----------------------------------------------------
-
-YOUR TASKS:
-
-1. JOB KEYWORD EXTRACTION
-- Identify the most important skills, tools, technologies, frameworks, methodologies, and role-specific terms from the job description.
-- Normalize keywords:
-  - Merge synonyms (e.g., "JS" → "JavaScript")
-  - Use canonical names (e.g., "Node" → "Node.js")
-- Avoid soft skills unless explicitly critical.
-- Avoid duplicate or overlapping keywords.
-- Limit the list to the most relevant and impactful keywords.
-
-2. MATCHED KEYWORDS
-- From the extracted job keywords, identify which ones are explicitly present in the resume text.
-- Match case-insensitively.
-- Consider simple variations (plural, tense).
-- Do NOT infer skills that are not clearly stated.
-
-3. MISSING KEYWORDS
-- From the extracted job keywords, list those that are NOT found in the resume text.
-- Do not invent new skills.
-- Do not include keywords that were never in the job keyword list.
-
-4. RESUME SECTION CLASSIFICATION
-- Detect which of the following standard ATS sections are present in the resume:
-  - summary
-  - skills
-  - experience
-  - education
-- A section is considered present if its content is clearly identifiable.
-- Do not assume sections if they are ambiguous.
-
-5. FORMATTING ISSUES DETECTION
-- Identify ATS-unfriendly formatting indicators based on resume text patterns:
-  - tables
-  - icons
-  - images
-  - columns
-- Only include an issue if there is reasonable textual evidence.
-- Do not guess or over-report issues.
-
-----------------------------------------------------
-
-OUTPUT REQUIREMENTS (VERY IMPORTANT):
-
-- Return ONLY a single valid JSON object.
-- Do NOT include explanations.
-- Do NOT include markdown formatting.
-- Do NOT include percentages, scores, or commentary.
-- Do NOT include additional keys.
-- Do NOT include trailing commas.
-- All values must be arrays of lowercase strings.
-- Use consistent, normalized naming.
-
-----------------------------------------------------
-
-OUTPUT FORMAT (EXACT):
-
-{
-  "job_keywords": [],
-  "matched_keywords": [],
-  "missing_keywords": [],
-  "resume_sections": [],
-  "formatting_issues": []
-}
-
-----------------------------------------------------
-
-FAIL-SAFE RULES:
-- If the job description is very short, extract only obvious keywords.
-- If no formatting issues are detected, return an empty array for "formatting_issues".
-- If a section is not clearly present, do not include it.
-- Never return null values.
-
-----------------------------------------------------
-
-BEGIN ANALYSIS USING THE PROVIDED INPUTS.
-----------------------------------------------------
-RESUME TEXT:
-${resumeText}
-----------------------------------------------------
-JOB DESCRIPTION:
-${jobDescription}
-`;
 
         const model = genAi.getGenerativeModel({model:"gemini-2.5-flash-lite"});
         const response = await model.generateContent(prompt);
         console.log("Raw AI Output:", await response.response.text());
         const rawOutput = await response.response.text();
-        const {job_keywords,matched_keywords,missing_keywords,resume_sections,formatting_issues}=JSON.parse(rawOutput);
-        const keyWordScore = (job_keywords.length===0) ? 0 : (matched_keywords.length/job_keywords.length)*100;
-        const sectionScore = (resume_sections.length===0) ? 0 : (resume_sections.length/4)*100; 
-        const formattingScore= 100 - (formatting_issues.length * 25);
-        const overallScore = (keyWordScore * 0.5) + (sectionScore * 0.3) + (formattingScore * 0.2);
-        const minjdLengthForKeywords=60;
-        let responseConfidence="high";
-        if(jobDescription.length<minjdLengthForKeywords){
-            responseConfidence="low";
-        }
+            const cleaned = rawOutput.replace(/```json/g, "").replace(/```/g, "").trim();
+            let parsed;
+            try {
+              parsed = JSON.parse(cleaned);
+            } catch (parseError) {
+              console.error("JSON parse error:", parseError);
+              return res.status(500).json({ error: "Failed to parse AI output" });
+            }
+          const {job_keywords,matched_keywords,missing_keywords,resume_sections}=parsed;
+          const keywordScore = job_keywords.length === 0 ? 0 : (matched_keywords.length / job_keywords.length) * 100;
+          const sectionScore = resume_sections.length === 0 ? 0 : (resume_sections.length / 4) * 100;
+          const overallScore = Math.round((keywordScore * 0.6) + (sectionScore * 0.4));
+          const responseConfidence = jobDescription.length < 60 ? "low" : "high";
+          const missing_penalty = Math.min(missing_keywords.length * 0.2,20);
+          const finalScore = Math.min(
+            Math.round(overallScore - missing_penalty),
+            95
+          );
+
+          console.log("Final ATS Score:", finalScore);
+      
+          await Resume.create({
+            userId:req.user.id,
+            atsScore:finalScore,
+            responseConfidence,
+            missing_keywords,
+            resumeText
+          });
         res.status(200).json({
-            overallScore,
+            atsScore:finalScore,
+            matched_keywords,
+            resume_sections,
             missing_keywords,
             responseConfidence
         });
-      await Resume.create({
-        userId:req.user.id,
-        atsScore:overallScore,
-        responseConfidence,
-        missing_keywords,
-        resumeText
-      })
+
     }
     catch(error){
         console.error("Error analyzing resume:",error);
+    }
+    finally{
+        if(cleanup){
+            cleanup();
+        }
     }
 }
 const getAllResumes=async(req,res)=>{

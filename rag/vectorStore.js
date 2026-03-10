@@ -16,15 +16,15 @@ const upsertVectors=async(chunks,vectors,namespace)=>{
                 chunkIndex:i,
             },
         }));
-        console.log("Records length:", records.length);
-        console.log("Sample record id:", records[0]?.id);
-        console.log("Sample record values type:", typeof records[0]?.values);
-        console.log("Sample record values isArray:", Array.isArray(records[0]?.values));
-        console.log("Sample record values length:", records[0]?.values?.length);
-        console.log("Sample record first value:", records[0]?.values?.[0]);
-        const indexStats = await index.describeIndexStats();
-        console.log("Current Index Stats:", indexStats.dimension);
-        const batchSize=1;
+        // console.log("Records length:", records.length);
+        // console.log("Sample record id:", records[0]?.id);
+        // console.log("Sample record values type:", typeof records[0]?.values);
+        // console.log("Sample record values isArray:", Array.isArray(records[0]?.values));
+        // console.log("Sample record values length:", records[0]?.values?.length);
+        // console.log("Sample record first value:", records[0]?.values?.[0]);
+        // const indexStats = await index.describeIndexStats();
+        // console.log("Current Index Stats:", indexStats.dimension);
+        const batchSize=100;
         for(let i=0;i<records.length;i+=batchSize){
             await index.namespace(namespace).upsert({records:records.slice(i,i+batchSize)});
         }

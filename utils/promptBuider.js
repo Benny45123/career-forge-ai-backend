@@ -49,25 +49,59 @@ Return ONLY a JSON object:
   
   const buildResumeAnalysisPrompt = (relevantChunks, jobDescription) => {
     const resumeContext = relevantChunks
-      .map((c, i) => `[Section ${i + 1}]:\n${c.pageContent}`)
-      .join('\n\n');
-  
-    return `You are a professional ATS resume analyzer.
-  
-  RELEVANT RESUME SECTIONS:
-  ${resumeContext}
-  
-  JOB DESCRIPTION:
-  ${jobDescription}
-  
-  Return ONLY valid JSON (no markdown):
-  {
-    "job_keywords": [],
-    "matched_keywords": [],
-    "missing_keywords": [],
-    "resume_sections": [],
-    "formatting_issues": []
-  }`;
+    .map((c, i) => `[Section ${i + 1}]:\n${c.pageContent}`)
+    .join('\n\n');
+
+  return `SYSTEM ROLE:
+You are a professional ATS (Applicant Tracking System) resume analyzer.
+Your ONLY job is keyword and section analysis. Nothing else.
+
+----------------------------------------------------
+RELEVANT RESUME SECTIONS:
+${resumeContext}
+----------------------------------------------------
+JOB DESCRIPTION:
+${jobDescription}
+----------------------------------------------------
+
+YOUR TASKS:
+
+1. JOB KEYWORD EXTRACTION
+- Extract the most critical skills, tools, technologies, frameworks, and role terms from the job description.
+- Normalize: "JS" → "javascript", "Node" → "node.js", "Mongo" → "mongodb"
+- Lowercase all keywords.
+- No duplicates. No soft skills unless explicitly required.
+
+2. MATCHED KEYWORDS
+- From job keywords, find which ones explicitly appear in the resume sections above.
+- Match case-insensitively.
+- Do NOT infer. Only include if clearly present.
+
+3. MISSING KEYWORDS
+- From job keywords, list those NOT found in the resume sections.
+- Do not invent keywords.
+
+4. RESUME SECTION DETECTION
+- Detect which of these 4 sections are clearly present:
+  - "summary"
+  - "skills"
+  - "experience"
+  - "education"
+- Only include if clearly identifiable. Never guess.
+
+----------------------------------------------------
+STRICT OUTPUT RULES:
+- Return ONLY valid JSON. No markdown. No explanation. No extra keys.
+- All values are arrays of lowercase strings.
+- No null values. Use empty arrays if nothing found.
+
+OUTPUT FORMAT (EXACT):
+{
+  "job_keywords": [],
+  "matched_keywords": [],
+  "missing_keywords": [],
+  "resume_sections": []
+}`;
   };
   
   module.exports = { buildCoverLetterPrompt, buildResumeAnalysisPrompt };

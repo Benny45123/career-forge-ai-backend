@@ -20,7 +20,7 @@ const embedChunks = async (chunks) => {
 
     try {
         const texts = chunks.map(doc => doc.pageContent);
-        console.log(texts)
+        // console.log(texts)
         if(!texts || !Array.isArray(texts)) {
             console.error("Error: Failed to extract pageContent from chunks. Result:", texts);
             return [];
@@ -42,7 +42,7 @@ const embedQuery = async (query) => {
 
     try {
         const res = await queryEmbedder.embedQuery(query);
-        console.log("Generated Query Vector:", res);
+        // console.log("Generated Query Vector:", res);
         return res;
     } catch (error) {
         console.error("Embedding Error:", error.message);

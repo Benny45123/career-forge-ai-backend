@@ -2,7 +2,7 @@ const pdfParse = require('pdf-parse');
 const {buildResumeRetriever} = require('../rag/retreiver.js');
 const CoverLetter = require('../models/coverLetterSchema.js');
 const {GoogleGenerativeAI}= require('@google/generative-ai');
-const {buildCoverLetterPrompt,buildResumeAnalysisPrompt} = require('../utils/promptBuider.js');
+const {buildCoverLetterPrompt} = require('../utils/promptBuider.js');
 const API_KEY = process.env.GEMINI_API_KEY;
 const generateCoverLetter = async (req, res) => {
     console.log(req.body);

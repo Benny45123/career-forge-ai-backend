@@ -1,0 +1,36 @@
+name: Deploy Nodejs app to AWS EC2
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      - name: Login to DockerHub
+        run: docker login -u ${{secrets.DOCKER_USERNAME}} -p ${{secrets.DOCKER_PASSWORD}}
+      - name: Build Docker Image
+        run: docker build -t bennyhinnbezawada/careerforge-ai-backend:latest .
+      - name: Push Docker Image
+        run: docker push bennyhinnbezawada/careerforge-ai-backend:latest
+  deploy:
+    needs: build
+    runs-on: self-hosted
+    steps:
+      - name: Pull Image from DockerHub
+        run: docker pull bennyhinnbezawada/careerforge-ai-backend:latest
+      - name: Stop Existing Container
+        run: docker stop careerforge-ai-backend || true
+      - name: Remove Existing Container
+        run: docker rm careerforge-ai-backend || true
+      - name: Run New Container
+        run: |
+         docker run -d -p 3120:3120 \
+         --name careerforge-ai-backend \
+         --env-file /home/ubuntu/.env \
+         --restart unless-stopped \
+          bennyhinnbezawada/careerforge-ai-backend:latest

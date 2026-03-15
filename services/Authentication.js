@@ -91,7 +91,7 @@ const SendOtp=async ({userId,email})=>{
         expiresAt:Date.now()+(6*60*1000),//6 minutes
     })
     await otpRecord.save();
-     transporter.sendMail({
+     await transporter.sendMail({
         from: `Career-Forge-AI <${process.env.APP_EMAIL}>`,
         to: email,
         subject: "Your OTP Verification code for Career-Forge-AI SignUp",

@@ -31,6 +31,6 @@ jobs:
         run: |
          docker run -d -p 3120:3120 \
          --name careerforge-ai-backend \
-         --env-file /home/ubuntu/.env \
+         --env-file /home/ubuntu/career/.env \
          --restart unless-stopped \
           bennyhinnbezawada/careerforge-ai-backend:latest

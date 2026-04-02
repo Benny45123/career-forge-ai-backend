@@ -8,6 +8,7 @@ const cookieParser=require('cookie-parser');
 const coverLetterRoute = require("./routes/coverLetterRoute.js");
 const resumeRoute = require("./routes/ResumeCheckerRoute.js");
 const rateLimit = require("express-rate-limit");
+const quizRoute = require("./routes/quizRoute.js");
 app.use(express.json());
 dotenv.config();
 app.use(cors({
@@ -32,13 +33,14 @@ app.get('/', (req, res) => {
     res.send("Testing github webhooks and automating ci/cd in jenkins");
 });
 
-app.post('/api/register',registerUser);
+app.post('/api/register',authlimiter,registerUser);
 app.post('/api/login',authlimiter,loginUser);
 app.post('/api/verify-otp',verifyOTP);
 app.post('/api/resend-otp',resendOtp);
 app.use(authenticateToken);
 app.use('/api/cover-letter',coverLetterRoute.router);
 app.use('/api/resume/',resumeRoute.router);
+app.use('/api/quiz',quizRoute.router);
 app.get('/api/user',async (req,res)=>{
     try{
     const userId=req.user.id;

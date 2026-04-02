@@ -17,18 +17,18 @@ const analyzeResume = async(req,res)=>{
         const {retreiver,cleanup:_cleanup}=await buildResumeRetriever(resumeText,req.user.id);
         cleanup=_cleanup;
         const queries= [
-          jobDescription,                                          
-          "technical skills programming languages frameworks tools libraries", 
-          "work experience projects achievements responsibilities",            
-          "education degree university certification courses",                 
-          "summary objective profile professional overview",                   
+          {q:jobDescription,k:8},                                          
+          {q:"technical skills programming languages frameworks tools libraries",k:7}, 
+          {q:"work experience projects achievements responsibilities",k:7},            
+          {q:"education degree university certification courses",k:3},                 
+          {q:"summary objective profile professional overview",k:3},                   
         ];
         const seen = new Set();
         const uniqueChunks = [];
 
-        for (const query of queries) {
-          if (!query.trim()) continue;
-            const chunks = await retreiver(query, 4);
+        for (const {q,k} of queries) {
+          if (!q.trim()) continue;
+            const chunks = await retreiver(q, k);
             for (const chunk of chunks) {
               if (!seen.has(chunk.pageContent)) {
                 seen.add(chunk.pageContent);

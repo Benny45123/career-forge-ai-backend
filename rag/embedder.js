@@ -25,7 +25,7 @@ const embedChunks = async (chunks) => {
             console.error("Error: Failed to extract pageContent from chunks. Result:", texts);
             return [];
         }
-        console.log("Extracted Texts for Embedding:", texts);
+        // console.log("Extracted Texts for Embedding:", texts);
         const res = await documentEmbedder.embedDocuments(texts);
         console.log(`Generated ${res.length} Vectors.`);
         return res;

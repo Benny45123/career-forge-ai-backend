@@ -21,12 +21,14 @@ const generateCoverLetter = async (req, res) => {
         const {retreiver,cleanup:_cleanup}=await buildResumeRetriever(resumeText,req.user.id);
         cleanup=_cleanup;
         const jobQuery = `${jobDescription} ${skillsFocus}`;
-        let jobChunks = await retreiver(jobQuery);
-        const contactQuery = "name email phone linkedin contact information";
-        let contactChunks = await retreiver(contactQuery);
+        let jobChunks = await retreiver(jobQuery,10);
+        const contactQuery = "name email phone linkedin contact information github";
+        let contactChunks = await retreiver(contactQuery,3);
+        const projectQuery = "projects developed built created implemented";
+        let projectChunks = await retreiver(projectQuery,5);
         const seen = new Set();
         const allChunks = [];
-        for(const chunk of [...jobChunks, ...contactChunks]){
+        for(const chunk of [...jobChunks, ...contactChunks, ...projectChunks]){
             const text = chunk.pageContent;
             if(!seen.has(text)){
                 seen.add(text);

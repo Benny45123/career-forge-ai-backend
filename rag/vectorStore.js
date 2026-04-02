@@ -5,8 +5,8 @@ const pc=new Pinecone({
 });
 const upsertVectors=async(chunks,vectors,namespace)=>{
     try{
-        console.log(process.env.PINECONE_INDEX_NAME,process.env.PINECONE_HOST);
-        console.log(chunks.length,vectors.length);
+        // console.log(process.env.PINECONE_INDEX_NAME,process.env.PINECONE_HOST);
+        // console.log(chunks.length,vectors.length);
         const index=pc.index({host:process.env.PINECONE_HOST,name:process.env.PINECONE_INDEX_NAME});
         const records=chunks.map((chunk,i)=>({
             id:`${namespace}-chunk-${i}`,

@@ -9,6 +9,7 @@ const coverLetterRoute = require("./routes/coverLetterRoute.js");
 const resumeRoute = require("./routes/ResumeCheckerRoute.js");
 const rateLimit = require("express-rate-limit");
 const quizRoute = require("./routes/quizRoute.js");
+const jobRoute = require("./routes/jobRoute.js");
 app.use(express.json());
 dotenv.config();
 app.use(cors({
@@ -28,10 +29,10 @@ const authlimiter = rateLimit({
     message: {message : "Too many auth requests from this IP, please try again after 15 minutes"}
 });
 app.set('trust proxy', 1); // trust first proxy
-console.log("Testing github webhooks in jenkins");
-app.get('/', (req, res) => {
-    res.send("Testing github webhooks and automating ci/cd in jenkins");
-});
+// console.log("Testing github webhooks in jenkins");
+// app.get('/', (req, res) => {
+//     res.send("Testing github webhooks and automating ci/cd in jenkins");
+// });
 
 app.post('/api/register',authlimiter,registerUser);
 app.post('/api/login',authlimiter,loginUser);
@@ -41,6 +42,7 @@ app.use(authenticateToken);
 app.use('/api/cover-letter',coverLetterRoute.router);
 app.use('/api/resume/',resumeRoute.router);
 app.use('/api/quiz',quizRoute.router);
+app.use('/api/jobs',jobRoute.router);
 app.get('/api/user',async (req,res)=>{
     try{
     const userId=req.user.id;
